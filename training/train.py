@@ -25,8 +25,8 @@ def train_deep_hedging(env,
                        episodes=10,
                        steps_per_episode=10,
                        batch_size=32,
-                       lr_actor=1e-3,
-                       lr_critic=1e-3):
+                       lr_actor=1e-4,
+                       lr_critic=1e-4):
     """
     We run environment rollouts, store transitions in a replay buffer, 
     then do advantage-based updates in mini-batches.
@@ -113,9 +113,10 @@ def train_deep_hedging(env,
         
         episode_raw_rewards.append(episode_return)
 
+        print(f"Replay buffer size: {len(memory)}")
         # --- Mini-batch updates ---
         updates = 5
-        for _ in range(updates):
+        for i in range(updates):
             if len(memory) < batch_size:
                 break
 
@@ -124,6 +125,14 @@ def train_deep_hedging(env,
             a_batch = torch.cat(a_list, dim=0)
             r_batch = torch.tensor(r_list, dtype=torch.float)  # shape [batch_size]
             s_next_batch = torch.cat(s_next_list, dim=0)
+
+            s_mean = s_batch.mean(dim=0, keepdim=True)
+            s_std  = s_batch.std(dim=0, keepdim=True) + 1e-8
+            s_batch_norm = (s_batch - s_mean) / s_std
+
+            s_next_mean = s_next_batch.mean(dim=0, keepdim=True)
+            s_next_std  = s_next_batch.std(dim=0, keepdim=True) + 1e-8
+            s_next_batch_norm = (s_next_batch - s_next_mean) / s_next_std
             
             # Reward normalization (using batch statistics)
             r_mean = r_batch.mean()
@@ -134,12 +143,12 @@ def train_deep_hedging(env,
                 v_next = critic(s_next_batch)  # shape [batch_size]
                 target = oce_utility(gamma * v_next + normalized_r, lambd, utility_type)
 
-            v_pred = critic(s_batch)
+            v_pred = critic(s_batch_norm)
             critic_loss = ((v_pred - target)**2).mean()
             critic_optim.zero_grad()
             critic_loss.backward()
             # Apply gradient clipping for critic:
-            torch.nn.utils.clip_grad_norm_(critic.parameters(), max_norm=1.0)
+            torch.nn.utils.clip_grad_norm_(critic.parameters(), max_norm=0.5)
             critic_optim.step()
 
             advantage = target - v_pred
@@ -153,15 +162,18 @@ def train_deep_hedging(env,
             actor_optim.zero_grad()
             actor_loss.backward()
             # Apply gradient clipping for actor:
-            torch.nn.utils.clip_grad_norm_(actor.parameters(), max_norm=1.0)
+            torch.nn.utils.clip_grad_norm_(actor.parameters(), max_norm=0.5)
             actor_optim.step()
 
-            critic_grad_norm = sum(p.grad.norm().item() for p in critic.parameters() if p.grad is not None)
-            print(f"   Critic gradient norm: {critic_grad_norm:.2f}")
-            actor_grad_norm = sum(p.grad.norm().item() for p in actor.parameters() if p.grad is not None)
-            print(f"   Actor gradient norm: {actor_grad_norm:.2f}")
+            # Print every 10 updates
+            if i % 5 == 0:
+                print(f"Update {i}")
+                critic_grad_norm = sum(p.grad.norm().item() for p in critic.parameters() if p.grad is not None)
+                print(f"   Critic gradient norm: {critic_grad_norm:.2f}")
+                actor_grad_norm = sum(p.grad.norm().item() for p in actor.parameters() if p.grad is not None)
+                print(f"   Actor gradient norm: {actor_grad_norm:.2f}")
             
-            print(f"Critic loss={critic_loss.item()}, Actor loss={actor_loss.item()}")
+                print(f"Critic loss={critic_loss.item()}, Actor loss={actor_loss.item()}")
 
         memory.clear()
 
