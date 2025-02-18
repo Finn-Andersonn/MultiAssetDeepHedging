@@ -11,7 +11,7 @@ def run_experiment(actor_lr, critic_lr, episodes, steps_per_episode, gamma):
         d_portfolio=12,
         d_market=6,
         n_hedges=12,
-        max_steps=25,
+        max_steps=40,
         use_corr_model=True,
         transaction_cost_fn=lambda a, m: 0.001 * np.sum(np.abs(a)),
         seed=42
@@ -34,7 +34,7 @@ def run_experiment(actor_lr, critic_lr, episodes, steps_per_episode, gamma):
                        gamma=gamma,
                        episodes=episodes,
                        steps_per_episode=steps_per_episode,
-                       batch_size=32,
+                       batch_size=16,
                        lr_actor=actor_lr,
                        lr_critic=critic_lr)
 
@@ -63,11 +63,11 @@ def run_experiment(actor_lr, critic_lr, episodes, steps_per_episode, gamma):
 
 def main():
     # Candidate hyperparameters: actor LR, critic LR, and discount factor gamma
-    candidate_actor_lrs = [1e-3, 5e-4, 1e-4]
-    candidate_critic_lrs = [1e-3, 5e-4, 1e-4]
+    candidate_actor_lrs = [1e-4, 5e-5]
+    candidate_critic_lrs = [1e-4, 5e-5]
     candidate_gammas = [0.95, 0.98, 0.99]
     episodes = 30
-    steps_per_episode = 20
+    steps_per_episode = 40
 
     best_reward = -np.inf
     best_params = None
@@ -78,7 +78,6 @@ def main():
             for gamma in candidate_gammas:
                 print(f"\nTraining with actor_lr={actor_lr}, critic_lr={critic_lr}, gamma={gamma}")
                 final_reward = run_experiment(actor_lr, critic_lr, episodes, steps_per_episode, gamma)
-                print(f"Final test reward: {final_reward}")
                 if final_reward > best_reward:
                     best_reward = final_reward
                     best_params = (actor_lr, critic_lr, gamma)
@@ -125,7 +124,7 @@ def compare_correlation_settings():
                        utility_type="exp",
                        gamma=0.99,
                        episodes=10,
-                       steps_per_episode=15,
+                       steps_per_episode=40,
                        batch_size=16)
 
     # 2) Define correlation matrix #2 (no cross-correlation)
@@ -157,7 +156,7 @@ def compare_correlation_settings():
                        utility_type="exp",
                        gamma=0.99,
                        episodes=10,
-                       steps_per_episode=15,
+                       steps_per_episode=40,
                        batch_size=16)
 
     # 3) Evaluate both policies on the same initial state from env1
