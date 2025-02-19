@@ -193,7 +193,7 @@ class BatesCalibrator:
         if bounds is None:
             bounds = [
                 (1e-3, 20),  # kappa
-                (1e-6, 1.0), # theta
+                (1e-3, 1.0), # theta
                 (1e-3, 2.0), # sigma
                 (-0.99, 0.0),# rho
                 (0.0,  5.0), # lambda_j
@@ -307,18 +307,18 @@ class BatesCalibrator:
             "correlation_2N": corr_2N
         }
 
-def resample_to_15min(df):
+def resample_to_3days(df):
     """
-    df has columns [timestamp, close], each row is 1 minute data.
-    We'll group by 15-minute intervals. 
+    df has columns [timestamp, close], each row is 1 day data.
+    We'll group by 3-day intervals. 
     """
     # Convert timestamp to a datetime if needed
     df["time"] = pd.to_datetime(df["time"])
     df.set_index("time", inplace=True)
 
     # 15 minute resample: we'll do last known close
-    df_15m = df["close"].resample("15T").last().dropna().reset_index()
-    return df_15m
+    df_3m = df["close"].resample("3D").last().dropna().reset_index()
+    return df_3m
 
 
 def calibrate_bates_multi_asset():
@@ -326,18 +326,18 @@ def calibrate_bates_multi_asset():
     calibrator = BatesCalibrator(dt=1/252)
 
     # load CSV data
-    df1_full = pd.read_csv("/Users/finn/Desktop/UCL Masters/Advanced ML/Project/Code/data/token_data/ethusd.csv")
-    df2_full = pd.read_csv("/Users/finn/Desktop/UCL Masters/Advanced ML/Project/Code/data/token_data/btcusd.csv")
+    df1_full = pd.read_csv("/Users/finn/Desktop/UCL Masters/Advanced ML/Project/Code/data/token_data/btcusd.csv")
+    df2_full = pd.read_csv("/Users/finn/Desktop/UCL Masters/Advanced ML/Project/Code/data/token_data/ethusd.csv")
     df3_full = pd.read_csv("/Users/finn/Desktop/UCL Masters/Advanced ML/Project/Code/data/token_data/ltcusd.csv")
 
-    df1 = resample_to_15min(df1_full)
-    df2 = resample_to_15min(df2_full)
-    df3 = resample_to_15min(df3_full)
+    df1 = resample_to_3days(df1_full)
+    df2 = resample_to_3days(df2_full)
+    df3 = resample_to_3days(df3_full)
 
     prices_dict = {
-        "asset1": df1["close"].values,
-        "asset2": df2["close"].values,
-        "asset3": df3["close"].values
+        "asset0": df1["close"].values,
+        "asset1": df2["close"].values,
+        "asset2": df3["close"].values
     }
 
     # 1) Single-asset calibrations + correlation among returns
