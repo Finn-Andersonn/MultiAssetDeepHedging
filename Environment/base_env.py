@@ -13,8 +13,6 @@
 #      via a user-supplied BatesModel, and we compute
 #      an immediate reward = daily PnL - transactionCost.
 #
-# We do NOT define the Bellman equation or RL updates here.
-# That belongs in the training/actor-critic code.
 # ----------------------------------------------------------
 
 import numpy as np
@@ -150,21 +148,22 @@ class MultiAssetHedgingEnv:
         # Instruments to hedge
         self.instruments = [
             # Underlying #0 -> BTC
-            {"option_type": "call", "asset_index": 0, "strike": 90.0},
-            {"option_type": "put",  "asset_index": 0, "strike": 90.0},
-            {"option_type": "call", "asset_index": 0, "strike": 100.0},
-            {"option_type": "put",  "asset_index": 0, "strike": 100.0},
+            {"option_type": "call", "asset_index": 0, "strike": 91585.0},
+            {"option_type": "put",  "asset_index": 0, "strike": 91585.0},
+            {"option_type": "call", "asset_index": 0, "strike": 101226.0},
+            {"option_type": "put",  "asset_index": 0, "strike": 101226.0},
             # Underlying #1 -> ETH
-            {"option_type": "call", "asset_index": 1, "strike": 95.0},
-            {"option_type": "put",  "asset_index": 1, "strike": 105.0},
-            {"option_type": "call", "asset_index": 1, "strike": 110.0},
-            {"option_type": "put",  "asset_index": 1, "strike": 107.0},
+            {"option_type": "call", "asset_index": 1, "strike": 2586.0},
+            {"option_type": "put",  "asset_index": 1, "strike": 2586.0},
+            {"option_type": "call", "asset_index": 1, "strike": 2859.0},
+            {"option_type": "put",  "asset_index": 1, "strike": 2859.0},
             # Underlying #2 -> LTC
-            {"option_type": "call", "asset_index": 2, "strike": 80.0},
-            {"option_type": "put",  "asset_index": 2, "strike": 85.0},
-            {"option_type": "call", "asset_index": 2, "strike": 90.0},
-            {"option_type": "put",  "asset_index": 2, "strike": 95.0},
+            {"option_type": "call", "asset_index": 2, "strike": 128.0},
+            {"option_type": "put",  "asset_index": 2, "strike": 128.0},
+            {"option_type": "call", "asset_index": 2, "strike": 141.5},
+            {"option_type": "put",  "asset_index": 2, "strike": 141.5},
         ]
+
         # len(instruments) == d_portfolio == n_hedges for a direct 1:1 mapping
         assert len(self.instruments) == d_portfolio == n_hedges, (
             "Mismatch in dimension. Adjust d_portfolio, n_hedges, or instrument list."
