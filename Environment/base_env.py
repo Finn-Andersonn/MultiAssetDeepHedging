@@ -19,8 +19,9 @@
 
 import numpy as np
 from config.black_scholes import black_scholes_call, black_scholes_put
-from data.historical import HistoricalMarket
 from data.calibration_bates import MultiAssetBatesModelCrossCorr, MultiAssetBatesModel
+from config.transaction_costs import spot_scale_cost_fn_factory, bid_ask_cost_fn_factory, approximate_option_spread
+from data.historical import calibrate_bates_multi_asset
 
 class MultiAssetHedgingEnv:
     """
@@ -52,14 +53,13 @@ class MultiAssetHedgingEnv:
                  d_market,
                  n_hedges,
                  max_steps,
-                 transaction_cost_fn,
+                 transaction_cost_fn=None,
                  bates_model = None,
                  use_corr_model = True,
                  seed=42, 
                  liquidity_limit=100.0,
                  big_penalty=1e6,
                  synthetic = True,
-                 historical_data = None,
                  ):
         """
         Constructor for MultiAssetHedgingEnv.
@@ -97,8 +97,13 @@ class MultiAssetHedgingEnv:
         self.n_hedges = n_hedges
         self.max_steps = max_steps
         self.bates_model = bates_model
-        self.transaction_cost_fn = transaction_cost_fn
         self.rng = np.random.RandomState(seed)
+
+        if transaction_cost_fn is not None:
+            self.transaction_cost_fn = transaction_cost_fn(self)
+        else:
+            # fallback or default
+            self.transaction_cost_fn = lambda a, m: 0.001 * np.sum(np.abs(a))
 
         # reward tracking
         self.reward_count = 0
@@ -116,53 +121,45 @@ class MultiAssetHedgingEnv:
 
         # Decide if we're using synthetic or historical data
         self.synthetic = synthetic
-        self.historical_data = historical_data
 
-        if self.synthetic:
-            if use_corr_model:
-                self.bates_model = MultiAssetBatesModelCrossCorr(
-                    N=2,
-                    alpha=[1.0, 1.2],
-                    beta=[0.04, 0.03],
-                    sigma=[0.5, 0.6],
-                    mu=[0.05, 0.02],
-                    lambda_j=[0.3, 0.5],
-                    mu_j=[-0.2, -0.25],
-                    sigma_j=[0.3, 0.4],
-                    # 2N=4 => correlation matrix shape (4,4). 
-                    corr_2N=[
-                        [1.0,   0.2,  0.1,  0.0],   # W^V_1 correlated with W^S_1 or W^V_2 etc.
-                        [0.2,   1.0,  0.05, 0.25],
-                        [0.1,   0.05, 1.0,  0.3 ],
-                        [0.0,   0.25, 0.3,  1.0 ]
-                    ],
-                    S0=[100.0, 90.0],
-                    V0=[0.04,  0.05],
-                    r=0.01,
-                    tau=1.0,
-                    dt=1.0/252,
-                    seed=seed
+        if use_corr_model:
+            N, alpha, beta, volofvol, lam_j, mu_j, sigma_j, S0_list, V0_list, r_, drift_spot, corr_2N  = calibrate_bates_multi_asset()
+            self.bates_model = MultiAssetBatesModelCrossCorr(
+                N=N, # Number of underlying assets
+                alpha=alpha,
+                beta=beta,
+                sigma=volofvol,
+                mu=drift_spot,
+                lambda_j=lam_j,
+                mu_j=mu_j,
+                sigma_j=sigma_j,
+                # 2N=6 => correlation matrix shape (6,6). 
+                corr_2N = corr_2N,
+                S0=S0_list, # Spot prices!
+                V0=V0_list,
+                r=r_,
+                tau=1.0,
+                dt=1.0/252,
+                seed=seed                
                 )
-            else:
-                # If not using correlation, maybe single-asset or a simpler multi-asset model
-                from data.calibration_bates import MultiAssetBatesModel
-                self.bates_model = MultiAssetBatesModel()
         else:
-            self.historical_model = HistoricalMarket(historical_data)
+            # If not using correlation, maybe single-asset or a simpler multi-asset model
+            from data.calibration_bates import MultiAssetBatesModel
+            self.bates_model = MultiAssetBatesModel()
 
         # Instruments to hedge
         self.instruments = [
-            # Underlying #0
+            # Underlying #0 -> BTC
             {"option_type": "call", "asset_index": 0, "strike": 90.0},
             {"option_type": "put",  "asset_index": 0, "strike": 90.0},
             {"option_type": "call", "asset_index": 0, "strike": 100.0},
             {"option_type": "put",  "asset_index": 0, "strike": 100.0},
-            # Underlying #1
+            # Underlying #1 -> ETH
             {"option_type": "call", "asset_index": 1, "strike": 95.0},
             {"option_type": "put",  "asset_index": 1, "strike": 105.0},
             {"option_type": "call", "asset_index": 1, "strike": 110.0},
             {"option_type": "put",  "asset_index": 1, "strike": 107.0},
-            # Underlying #2
+            # Underlying #2 -> LTC
             {"option_type": "call", "asset_index": 2, "strike": 80.0},
             {"option_type": "put",  "asset_index": 2, "strike": 85.0},
             {"option_type": "call", "asset_index": 2, "strike": 90.0},
