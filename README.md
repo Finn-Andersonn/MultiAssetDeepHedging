@@ -1,4 +1,8 @@
 # Deep Hedging for Deep OTM Options: A Multi-Asset Approach in Bates Jump-Diffusion Environments
+## TL;DR
+- **What this is**: Reinforcement Learning is really popular atm because of its use in training LLMs. This project creates a simple model that learns how to do a single task (delta-hedging) really well.
+- **Why this matters**: Existing solutions struggle with extreme and sudden events ("jumps") that stem from dramatic market news. This is common in crypto and simulated with "jump-diffusion" processes.
+- **Why this is cool**: This model learns to adapt its position without having to make over-constraining assumptions, outperforming traditional delta-hedging strategies.
 
 ## Abstract
 
